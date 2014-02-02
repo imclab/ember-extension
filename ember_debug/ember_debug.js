@@ -27,6 +27,7 @@ EmberDebug = Ember.Namespace.extend({
 
   start: function() {
     if (this.get('started')) {
+      this.get("adapter").debug("Ember Debugger Reset");
       this.reset();
       return;
     }

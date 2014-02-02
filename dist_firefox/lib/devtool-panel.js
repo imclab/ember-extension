@@ -91,6 +91,27 @@ let EmberInspector = {
     this._cleanupWorkers();
   },
 
+  _restartEmberDebug: function() {
+    var deferred = Promise.defer();
+
+    this._consoleFor(this.toolbox._target).then(({webconsoleClient, debuggerClient}) => {
+      log("startEmberDebug");
+
+      webconsoleClient.evaluateJS(
+          "if (document.readyState === 'complete' && !!Ember.Debug) " +
+          "{ Ember.Debug.start(); } ",
+        (res) => {
+          log("startEmberDebug DONE", res);
+          if (res.error || res.exception) {
+            log("error restarting ember_debug", res.error, res.exception);
+            deferred.reject(res);
+          } else {
+            deferred.resolve(res);
+          }
+        }, { url: self.data.url("ember_debug/ember_debug.js") });
+    }, deferred.reject);
+  },
+
   _injectEmberDebug: function() {
     var deferred = Promise.defer();
 
@@ -99,11 +120,14 @@ let EmberInspector = {
 
     // evaluate ember_debug source in the target tab (and resolve/reject accordingly)
     this._consoleFor(this.toolbox._target).then(({webconsoleClient, debuggerClient}) => {
+      log("injectEmberDebug");
+
       webconsoleClient.evaluateJS(this.emberDebugSource, (res) => {
         if (res.error || res.exception) {
-          deferred.reject(res.error, res.exception);
+          log("error injecting ember_debug", res.error, res.exception);
+          deferred.reject(res);
         } else {
-          deferred.resolve(res);
+          this._restartEmberDebug().then(deferred.resolve);
         }
       }, { url: self.data.url("ember_debug/ember_debug.js") });
 
